@@ -11,6 +11,7 @@ function statusColor(status: UnifiedService["status"]) {
 function normalizeUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  if (trimmed.startsWith("ssh://")) return trimmed;
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
   return `http://${trimmed}`;
 }
@@ -34,12 +35,16 @@ function Meta({ label, value, href }: { label: string; value: string; href?: str
 
 export function ServiceTile({
   service,
+  sshUser,
+  onSshUserChange,
   busyId,
   onAction,
   onEdit,
   onDelete,
 }: {
   service: UnifiedService;
+  sshUser: string;
+  onSshUserChange: (value: string) => void;
   busyId: string;
   onAction: (service: UnifiedService, action: ServiceAction) => Promise<void>;
   onEdit: (service: UnifiedService) => Promise<void>;
@@ -51,7 +56,10 @@ export function ServiceTile({
     service.source === "proxmox"
       ? (["restart", "shutdown", "reset", "suspend", "resume"] as ServiceAction[])
       : (["restart"] as ServiceAction[]);
-  const linkUrl = normalizeUrl(service.domain);
+  const safeSshUser = sshUser.trim() || "root";
+  const proxmoxSshUrl = service.source === "proxmox" && service.ip ? `ssh://${safeSshUser}@${service.ip}` : "";
+  const linkUrl = normalizeUrl(proxmoxSshUrl || service.domain);
+  const metaValue = service.source === "proxmox" && service.ip ? `${safeSshUser}@${service.ip}` : service.domain || "-";
 
   const extraOptions = [
     ...extraActions.map((action) => ({ value: action, label: actionLabels[action] })),
@@ -100,7 +108,7 @@ export function ServiceTile({
 
       <div style={metaGrid}>
         <Meta label="IP" value={service.ip || "-"} />
-        <Meta label={service.source === "proxmox" ? "SSH" : "URL"} value={service.domain || "-"} href={linkUrl || undefined} />
+        <Meta label={service.source === "proxmox" ? "SSH" : "URL"} value={metaValue} href={linkUrl || undefined} />
       </div>
 
       <div style={actionsWrap}>
@@ -130,6 +138,24 @@ export function ServiceTile({
         </button>
         {menuOpen && (
           <div style={menuPopup} role="menu" aria-label="Flere handlinger">
+            {service.source === "proxmox" && (
+              <div style={menuSection}>
+                <p style={menuLabel}>SSH bruger</p>
+                <select
+                  value={safeSshUser}
+                  onChange={(event) => onSshUserChange(event.target.value)}
+                  style={menuSelect}
+                >
+                  {Array.from(new Set([safeSshUser, "root", "ubuntu", "debian", "admin", "ai"]))
+                    .filter(Boolean)
+                    .map((user) => (
+                      <option key={user} value={user}>
+                        {user}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
             {extraOptions.map((option) => (
               <button
                 key={option.value}
@@ -279,6 +305,32 @@ const menuItem: CSSProperties = {
   borderRadius: 8,
   padding: "8px 10px",
   cursor: "pointer",
+};
+
+const menuSection: CSSProperties = {
+  display: "grid",
+  gap: 6,
+  padding: "6px 8px 8px",
+  borderBottom: "1px solid rgba(205, 219, 255, 0.24)",
+  marginBottom: 4,
+};
+
+const menuLabel: CSSProperties = {
+  margin: 0,
+  fontSize: 11,
+  color: "var(--muted)",
+  textTransform: "uppercase",
+  letterSpacing: 0.6,
+};
+
+const menuSelect: CSSProperties = {
+  background: "rgba(154, 189, 255, 0.16)",
+  border: "1px solid rgba(173, 198, 255, 0.48)",
+  color: "var(--text)",
+  borderRadius: 10,
+  padding: "6px 8px",
+  fontSize: 12,
+  minWidth: 130,
 };
 
 function ActionIcon({ action }: { action: ServiceAction }) {

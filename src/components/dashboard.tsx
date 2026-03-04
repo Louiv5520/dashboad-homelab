@@ -37,6 +37,7 @@ export function Dashboard() {
   const [showCreateVm, setShowCreateVm] = useState(false);
   const [showCreateContainer, setShowCreateContainer] = useState(false);
   const [showProxmoxTools, setShowProxmoxTools] = useState(false);
+  const [sshUser, setSshUser] = useState("root");
   const [vmWizardTab, setVmWizardTab] = useState<"general" | "os" | "system" | "disk" | "cpu" | "memory" | "network" | "confirm">("general");
   const [vmOptions, setVmOptions] = useState<VmOptions | null>(null);
   const [vmOptionsLoading, setVmOptionsLoading] = useState(false);
@@ -257,6 +258,15 @@ export function Dashboard() {
   }
 
   useEffect(() => {
+    const saved = window.localStorage.getItem("homelab:sshUser");
+    if (saved) setSshUser(saved);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("homelab:sshUser", sshUser.trim() || "root");
+  }, [sshUser]);
+
+  useEffect(() => {
     const firstLoad = setTimeout(() => {
       loadServices().catch(() => setErrors(["Kunne ikke hente data."]));
     }, 0);
@@ -339,7 +349,16 @@ export function Dashboard() {
               </div>
               <div style={cardGrid}>
                 {proxmoxItems.map((service) => (
-                  <ServiceTile key={service.id} service={service} busyId={busyId} onAction={onAction} onEdit={editVm} onDelete={deleteVm} />
+                  <ServiceTile
+                    key={service.id}
+                    service={service}
+                    sshUser={sshUser}
+                    onSshUserChange={setSshUser}
+                    busyId={busyId}
+                    onAction={onAction}
+                    onEdit={editVm}
+                    onDelete={deleteVm}
+                  />
                 ))}
                 <article
                   className="ios-card ios-lift"
@@ -379,7 +398,16 @@ export function Dashboard() {
               </div>
               <div style={cardGrid}>
                 {dockerItems.map((service) => (
-                  <ServiceTile key={service.id} service={service} busyId={busyId} onAction={onAction} onEdit={editVm} onDelete={deleteVm} />
+                  <ServiceTile
+                    key={service.id}
+                    service={service}
+                    sshUser={sshUser}
+                    onSshUserChange={setSshUser}
+                    busyId={busyId}
+                    onAction={onAction}
+                    onEdit={editVm}
+                    onDelete={deleteVm}
+                  />
                 ))}
                 <article
                   className="ios-card ios-lift"
