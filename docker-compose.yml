@@ -1,25 +1,23 @@
 services:
   homelab-dashboard:
+    container_name: homelab-dashboard
     build:
       context: .
       dockerfile: Dockerfile
     image: homelab-dashboard:latest
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_USERNAME: ${AUTH_USERNAME}
-      AUTH_PASSWORD: ${AUTH_PASSWORD}
-      PROXMOX_BASE_URL: ${PROXMOX_BASE_URL}
-      PROXMOX_NODE: ${PROXMOX_NODE}
-      PROXMOX_TOKEN_ID: ${PROXMOX_TOKEN_ID}
-      PROXMOX_TOKEN_SECRET: ${PROXMOX_TOKEN_SECRET}
-      DOCKER_HOST: ${DOCKER_HOST}
-      DOCKER_SOCKET_PATH: ${DOCKER_SOCKET_PATH}
+      PORT: 3000
+      NEXT_TELEMETRY_DISABLED: 1
+      DOCKER_HOST: ${APP_DOCKER_HOST:-}
+      DOCKER_SOCKET_PATH: ${DOCKER_SOCKET_PATH:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s

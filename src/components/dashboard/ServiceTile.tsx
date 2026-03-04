@@ -16,12 +16,29 @@ function normalizeUrl(value: string) {
   return `http://${trimmed}`;
 }
 
+function isSshUrl(value?: string) {
+  return Boolean(value && value.startsWith("ssh://"));
+}
+
 function Meta({ label, value, href }: { label: string; value: string; href?: string }) {
+  const ssh = isSshUrl(href);
+
   return (
     <div style={metaItem}>
       <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>{label}</p>
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" style={metaLink} title={value}>
+        <a
+          href={href}
+          target={ssh ? undefined : "_blank"}
+          rel={ssh ? undefined : "noreferrer"}
+          style={metaLink}
+          title={value}
+          onClick={(event) => {
+            if (!ssh) return;
+            event.preventDefault();
+            window.location.assign(href);
+          }}
+        >
           {value}
         </a>
       ) : (
@@ -141,19 +158,13 @@ export function ServiceTile({
             {service.source === "proxmox" && (
               <div style={menuSection}>
                 <p style={menuLabel}>SSH bruger</p>
-                <select
+                <input
+                  type="text"
                   value={safeSshUser}
                   onChange={(event) => onSshUserChange(event.target.value)}
-                  style={menuSelect}
-                >
-                  {Array.from(new Set([safeSshUser, "root", "ubuntu", "debian", "admin", "ai"]))
-                    .filter(Boolean)
-                    .map((user) => (
-                      <option key={user} value={user}>
-                        {user}
-                      </option>
-                    ))}
-                </select>
+                  style={menuInput}
+                  placeholder="fx root"
+                />
               </div>
             )}
             {extraOptions.map((option) => (
@@ -323,7 +334,7 @@ const menuLabel: CSSProperties = {
   letterSpacing: 0.6,
 };
 
-const menuSelect: CSSProperties = {
+const menuInput: CSSProperties = {
   background: "rgba(154, 189, 255, 0.16)",
   border: "1px solid rgba(173, 198, 255, 0.48)",
   color: "var(--text)",
@@ -331,6 +342,7 @@ const menuSelect: CSSProperties = {
   padding: "6px 8px",
   fontSize: 12,
   minWidth: 130,
+  outline: "none",
 };
 
 function ActionIcon({ action }: { action: ServiceAction }) {
