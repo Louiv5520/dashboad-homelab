@@ -37,6 +37,7 @@ cp .env.example .env
 ```
 
 3. Udfyld `.env` med dine rigtige værdier.
+   - Ved login-problemer på HTTP (uden HTTPS): sæt `AUTH_COOKIE_SECURE=false`.
    - Hvis du bruger remote Docker API: sæt `APP_DOCKER_HOST` (fx `http://192.168.1.118:2375`) og lad `DOCKER_SOCKET_PATH` være tom.
    - Hvis dashboard skal tale med lokal Docker på serveren: lad `APP_DOCKER_HOST` være tom og brug `DOCKER_SOCKET_PATH=/var/run/docker.sock`.
 

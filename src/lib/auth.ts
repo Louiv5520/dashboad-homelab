@@ -38,10 +38,11 @@ export async function createSession(username: string) {
 
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
+  const forceSecure = process.env.AUTH_COOKIE_SECURE === "true";
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: forceSecure,
     maxAge: 60 * 60 * 12,
     path: "/",
   });
