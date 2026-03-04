@@ -1,6 +1,23 @@
 import Docker from "dockerode";
 import { DockerContainerCreateInput, ServiceStatus, UnifiedService } from "@/lib/types";
 
+const DOCKER_TIMEOUT_MS = 10000;
+
+async function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs = DOCKER_TIMEOUT_MS): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`${label} timeout efter ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 function getDockerClient() {
   const host = process.env.DOCKER_HOST;
   const socketPath = process.env.DOCKER_SOCKET_PATH;
@@ -14,11 +31,13 @@ function getDockerClient() {
       host: url.hostname,
       port: Number(url.port || 2375),
       protocol,
+      timeout: DOCKER_TIMEOUT_MS,
     });
   }
 
   return new Docker({
     socketPath: socketPath || "/var/run/docker.sock",
+    timeout: DOCKER_TIMEOUT_MS,
   });
 }
 
@@ -128,7 +147,7 @@ function buildAccessUrl(
 
 export async function listDockerServices(): Promise<UnifiedService[]> {
   const docker = getDockerClient();
-  const containers = await docker.listContainers({ all: true });
+  const containers = await withTimeout(docker.listContainers({ all: true }), "Docker list containers");
   const dockerHost = dockerHostLabel();
   const toStatus = (value?: string): ServiceStatus =>
     value === "running" ? "running" : "stopped";
@@ -165,9 +184,9 @@ export async function runDockerAction(serviceId: string, action: "start" | "stop
   const id = serviceId.replace(/^docker-/, "");
   const container = docker.getContainer(id);
 
-  if (action === "start") await container.start();
-  if (action === "stop") await container.stop();
-  if (action === "restart") await container.restart();
+  if (action === "start") await withTimeout(container.start(), "Docker start container");
+  if (action === "stop") await withTimeout(container.stop(), "Docker stop container");
+  if (action === "restart") await withTimeout(container.restart(), "Docker restart container");
 }
 
 function parsePorts(ports?: string) {
@@ -217,7 +236,8 @@ export async function createDockerContainer(input: DockerContainerCreateInput) {
   const env = parseEnv(input.env);
   const cmd = parseCmd(input.cmd);
 
-  const container = await docker.createContainer({
+  const container = await withTimeout(
+    docker.createContainer({
     name: input.name,
     Image: input.image,
     Env: env.length > 0 ? env : undefined,
@@ -227,10 +247,12 @@ export async function createDockerContainer(input: DockerContainerCreateInput) {
       PortBindings: Object.keys(portBindings).length > 0 ? portBindings : undefined,
       RestartPolicy: input.restartAlways ? { Name: "always" } : { Name: "no" },
     },
-  });
+    }),
+    "Docker create container"
+  );
 
   if (input.startAfterCreate ?? true) {
-    await container.start();
+    await withTimeout(container.start(), "Docker start new container");
   }
 
   return { id: container.id };
